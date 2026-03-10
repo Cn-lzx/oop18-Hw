@@ -1,0 +1,155 @@
+import random
+
+players_id = 1000
+base_money = 10000 # 每个人一开始有多少钱
+daily_prices = {}
+
+class Ev_Game:
+    def __init__(self, player_name, initial_money = base_money):
+        global players_id # 将players_id变成全局变量，不然后面运行不了
+        self.name = player_name
+        self.ID = players_id
+        players_id += 1
+        self.money = initial_money
+        print(f'Hello {self.name}, welcome to the Game!')
+        print(f'Your id is {self.ID}')
+        print(f'You start with {self.money} yuan')
+        print('-' * 50)
+        # 存放物品的列表，格式大概是字典 {'Name': 'xxx', 'price': 100, 'Type': 'xxx', 'Number': 1}
+        self.inventory = {}
+
+    def dic_player(self):
+        return {
+            'player_name': self.name,
+            'player_id': self.ID,
+            'money': self.money,
+            'inventory': self.inventory
+        }
+    
+    
+    #买入物品
+    def buy_item(self, item_name, item_type, buy_number=1):
+        # 先遍历仓库，看看有没有一样的物品
+        daily_price()
+        market_price = round(daily_prices[item_name], 1) #这里我想着让每天的价格发生变动,变动的价格在后面有写
+        total_cost = round(market_price * buy_number, 1)
+        
+        print(f'--- Current market price of {item_name} is {market_price} yuan/piece ---')
+        print(f'Buying {buy_number} piece(s) costs {total_cost} yuan, your current balance is {self.money} yuan')
+
+        choice = input('Do you want to buy? (Yes/No): ').strip()
+        if choice == 'No':
+            print('--- Purchase cancelled ---')
+            print('-' * 50)
+            return
+        elif choice == 'Yes':
+            # 检查一下余额是否足够
+            if self.money < total_cost:
+                print('--- Insufficient balance, cannot purchase ---')
+                print('-' * 50)
+                return
+
+        if item_name in self.inventory:
+            details = self.inventory[item_name]
+            
+            total_cost = details['total_cost'] + (market_price * buy_number)
+            total_quantity = details['Number'] + buy_number
+            avg_cost = round(total_cost / total_quantity, 1)
+        
+        
+            self.inventory[item_name]['Number'] = total_quantity
+            self.inventory[item_name]['avg_cost'] = avg_cost
+            self.inventory[item_name]['total_cost'] = total_cost
+            
+            print(f'You got {buy_number} {item_name}(s), current stock: {total_quantity}')
+            print(f'Average cost updated to: {avg_cost} yuan')
+
+        # 如果仓库里没有，就新建一个加进去
+        else:
+            self.inventory[item_name] = {              
+                'Type': item_type,
+                'avg_cost': market_price,       
+                'total_cost': total_cost,   
+                'Number': buy_number
+            }
+
+            print(f'You got {buy_number} {item_name}(s), average cost: {market_price} yuan')
+        
+        self.money = round(self.money - total_cost, 1)
+        print(f'Balance after purchase: {self.money} yuan')
+        print('-' * 50)
+
+    #卖出物品
+    def sell_item(self, item_name, sell_number=1):
+        # 找找要删的物品在哪
+        daily_price()
+        market_price = round(daily_prices[item_name], 1)
+
+        if item_name not in self.inventory:
+            print('You don\'t have this item in your inventory yet')
+        
+        else:
+            target_item = self.inventory[item_name]
+            # 检查库存够不够扣
+            if target_item['Number'] < sell_number:
+                print('--- Insufficient stock ---')
+                print(f'{item_name} only has {target_item["Number"]} piece(s) left')
+                return  # 库存不够就直接退出
+            
+            print(f'--- Current market price of {item_name} is {market_price} yuan/piece ---')
+            confirm = input(f'Are you sure you want to sell {sell_number} {item_name}(s)? (Yes or No): ')
+            
+            if confirm == 'Yes':
+                target_item['Number'] -= sell_number
+                income = round(market_price * sell_number, 1)
+                self.money = round(self.money + income, 1)
+                print(f'You lost {sell_number} {item_name}(s)')
+                print(f'Current balance: {self.money} yuan')
+                
+                # 数量清零就直接从列表里删掉
+                if target_item['Number'] == 0:
+                    del self.inventory[item_name]
+                    print(f'{item_name} has been removed from inventory')
+            else:
+                print('——— Nothing happened ———')
+
+        print('-' * 50)
+
+    #展示物品
+    def show_inventory(self, item_type):
+        print(f"--- {self.name}'s {item_type} type items ---")
+        # 把符合类型的挑出来
+        type_items = []
+        for item_name, details in self.inventory.items():
+            if details['Type'] == item_type:
+                informations = {
+                    'Name': item_name,
+                    'price': details['avg_cost'],  # 展示平均成本价
+                    'Type': details['Type'],
+                    'Number': details['Number']
+                }
+                type_items.append(informations)
+                
+        if not type_items:
+            print("(No items of this type)")
+        else:
+            for i in range(len(type_items)):
+                item = type_items[i]
+                print(f'[{i+1}] {item["Name"]} --- 价格:{item["price"]} --- 库存:{item["Number"]}')
+        print('-' * 50)
+
+def daily_price():
+    base_prices = {'蝴蝶刀': 1200, 'AK47': 5000}
+    global daily_prices
+    for name, price in base_prices.items():
+        daily_prices[name] = price * random.uniform(0.8, 1.2)
+
+# 测试用例
+if __name__ == '__main__':
+    player_name = input("Please enter your name:")
+    P1 = Ev_Game(player_name)
+    P1.buy_item('蝴蝶刀', '刀', buy_number=2)  
+    P1.buy_item('AK47',  '枪', buy_number=1)     
+    P1.buy_item('蝴蝶刀', '刀', buy_number=3)  
+    P1.sell_item('蝴蝶刀', sell_number=4)                
+    P1.show_inventory('刀')
